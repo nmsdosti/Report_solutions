@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      alignment_reports: {
+        Row: {
+          after_data: Json | null
+          alignment_date: string | null
+          alignment_method: string | null
+          angular_tolerance: number | null
+          approved_by: string | null
+          before_data: Json | null
+          case_id: string
+          coupling_type: string | null
+          created_at: string | null
+          customer_acknowledgment: string | null
+          customer_name: string | null
+          driven_name: string | null
+          driven_type: string | null
+          driver_name: string | null
+          driver_type: string | null
+          equipment_tag: string | null
+          id: string
+          location: string | null
+          offset_tolerance: number | null
+          project_name: string | null
+          recommendations: string | null
+          rpm: number | null
+          service_remarks: string | null
+          shim_added: string | null
+          status: string
+          technician_name: string | null
+          tolerance_angle_max: number | null
+          tolerance_offset_max: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          after_data?: Json | null
+          alignment_date?: string | null
+          alignment_method?: string | null
+          angular_tolerance?: number | null
+          approved_by?: string | null
+          before_data?: Json | null
+          case_id: string
+          coupling_type?: string | null
+          created_at?: string | null
+          customer_acknowledgment?: string | null
+          customer_name?: string | null
+          driven_name?: string | null
+          driven_type?: string | null
+          driver_name?: string | null
+          driver_type?: string | null
+          equipment_tag?: string | null
+          id?: string
+          location?: string | null
+          offset_tolerance?: number | null
+          project_name?: string | null
+          recommendations?: string | null
+          rpm?: number | null
+          service_remarks?: string | null
+          shim_added?: string | null
+          status?: string
+          technician_name?: string | null
+          tolerance_angle_max?: number | null
+          tolerance_offset_max?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          after_data?: Json | null
+          alignment_date?: string | null
+          alignment_method?: string | null
+          angular_tolerance?: number | null
+          approved_by?: string | null
+          before_data?: Json | null
+          case_id?: string
+          coupling_type?: string | null
+          created_at?: string | null
+          customer_acknowledgment?: string | null
+          customer_name?: string | null
+          driven_name?: string | null
+          driven_type?: string | null
+          driver_name?: string | null
+          driver_type?: string | null
+          equipment_tag?: string | null
+          id?: string
+          location?: string | null
+          offset_tolerance?: number | null
+          project_name?: string | null
+          recommendations?: string | null
+          rpm?: number | null
+          service_remarks?: string | null
+          shim_added?: string | null
+          status?: string
+          technician_name?: string | null
+          tolerance_angle_max?: number | null
+          tolerance_offset_max?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       company_branding: {
         Row: {
           company_name: string | null

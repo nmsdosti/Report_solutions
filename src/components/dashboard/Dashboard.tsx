@@ -18,18 +18,24 @@ import {
   Droplets,
   ChevronDown,
   BarChart3,
+  Link2,
+  Activity,
 } from "lucide-react";
-import { Report, User } from "@/types/report";
-import { storage } from "@/lib/storage";
+import { Report, User, AlignmentReport } from "@/types/report";
 
 interface DashboardProps {
   user: User;
   reports: Report[];
+  alignmentReports?: AlignmentReport[];
   onNewReport: () => void;
   onEditReport: (report: Report) => void;
   onDownloadPDF: (report: Report) => void;
   onDeleteReport: (id: string) => void;
   onToggleStatus: (id: string) => void;
+  onEditAlignmentReport?: (report: AlignmentReport) => void;
+  onDownloadAlignmentPDF?: (report: AlignmentReport) => void;
+  onDeleteAlignmentReport?: (id: string) => void;
+  onToggleAlignmentStatus?: (id: string) => void;
   onSettings: () => void;
   onLogout: () => void;
   onRefresh: () => void;
@@ -65,35 +71,55 @@ function AnimatedNumber({ value }: { value: number }) {
 export default function Dashboard({
   user,
   reports,
+  alignmentReports = [],
   onNewReport,
   onEditReport,
   onDownloadPDF,
   onDeleteReport,
   onToggleStatus,
+  onEditAlignmentReport,
+  onDownloadAlignmentPDF,
+  onDeleteAlignmentReport,
+  onToggleAlignmentStatus,
   onSettings,
   onLogout,
 }: DashboardProps) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "completed" | "pending"
+  >("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [reportKindFilter, setReportKindFilter] = useState<
+    "all" | "balancing" | "alignment"
+  >("all");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const allReports = useMemo(() => {
+    return [...reports, ...alignmentReports];
+  }, [reports, alignmentReports]);
 
   const thisMonth = useMemo(() => {
     const now = new Date();
-    return reports.filter((r) => {
+    return allReports.filter((r) => {
       const d = new Date(r.createdAt);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      return (
+        d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      );
     }).length;
-  }, [reports]);
+  }, [allReports]);
 
-  const stats = useMemo(() => ({
-    total: reports.length,
-    completed: reports.filter((r) => r.status === "completed").length,
-    pending: reports.filter((r) => r.status === "pending").length,
-    thisMonth,
-  }), [reports, thisMonth]);
+  const stats = useMemo(
+    () => ({
+      total: allReports.length,
+      completed: allReports.filter((r) => r.status === "completed").length,
+      pending: allReports.filter((r) => r.status === "pending").length,
+      thisMonth,
+    }),
+    [allReports, thisMonth],
+  );
 
-  const filtered = useMemo(() => {
+  const filteredBalancing = useMemo(() => {
+    if (reportKindFilter === "alignment") return [];
     return reports.filter((r) => {
       const q = search.toLowerCase();
       const matchSearch =
@@ -106,20 +132,66 @@ export default function Dashboard({
       const matchType = typeFilter === "all" || r.machineType === typeFilter;
       return matchSearch && matchStatus && matchType;
     });
-  }, [reports, search, statusFilter, typeFilter]);
+  }, [reports, search, statusFilter, typeFilter, reportKindFilter]);
+
+  const filteredAlignment = useMemo(() => {
+    if (reportKindFilter === "balancing") return [];
+    return alignmentReports.filter((r) => {
+      const q = search.toLowerCase();
+      const matchSearch =
+        !search ||
+        r.caseId.toLowerCase().includes(q) ||
+        r.projectName.toLowerCase().includes(q) ||
+        r.customerName.toLowerCase().includes(q) ||
+        r.alignmentDate.includes(q);
+      const matchStatus = statusFilter === "all" || r.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [alignmentReports, search, statusFilter, reportKindFilter]);
 
   const statCards = [
-    { label: "Total Reports", value: stats.total, icon: FileText, color: "from-[#00C9A7]/20 to-[#00C9A7]/5", border: "border-[#00C9A7]/20", iconColor: "text-[#00C9A7]" },
-    { label: "Completed", value: stats.completed, icon: CheckCircle, color: "from-green-500/20 to-green-500/5", border: "border-green-500/20", iconColor: "text-green-400" },
-    { label: "Pending", value: stats.pending, icon: Clock, color: "from-amber-500/20 to-amber-500/5", border: "border-amber-500/20", iconColor: "text-amber-400" },
-    { label: "This Month", value: stats.thisMonth, icon: CalendarDays, color: "from-[#1E90FF]/20 to-[#1E90FF]/5", border: "border-[#1E90FF]/20", iconColor: "text-[#1E90FF]" },
+    {
+      label: "Total Reports",
+      value: stats.total,
+      icon: FileText,
+      color: "from-[#00C9A7]/20 to-[#00C9A7]/5",
+      border: "border-[#00C9A7]/20",
+      iconColor: "text-[#00C9A7]",
+    },
+    {
+      label: "Completed",
+      value: stats.completed,
+      icon: CheckCircle,
+      color: "from-green-500/20 to-green-500/5",
+      border: "border-green-500/20",
+      iconColor: "text-green-400",
+    },
+    {
+      label: "Pending",
+      value: stats.pending,
+      icon: Clock,
+      color: "from-amber-500/20 to-amber-500/5",
+      border: "border-amber-500/20",
+      iconColor: "text-amber-400",
+    },
+    {
+      label: "This Month",
+      value: stats.thisMonth,
+      icon: CalendarDays,
+      color: "from-[#1E90FF]/20 to-[#1E90FF]/5",
+      border: "border-[#1E90FF]/20",
+      iconColor: "text-[#1E90FF]",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-[#0D1B2A]" style={{
-      backgroundImage: `linear-gradient(rgba(0,201,167,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,201,167,0.02) 1px, transparent 1px)`,
-      backgroundSize: "40px 40px",
-    }}>
+    <div
+      className="min-h-screen bg-[#0D1B2A]"
+      style={{
+        backgroundImage: `linear-gradient(rgba(0,201,167,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,201,167,0.02) 1px, transparent 1px)`,
+        backgroundSize: "40px 40px",
+      }}
+    >
       {/* Top Bar */}
       <header className="sticky top-0 z-50 bg-[#0D1B2A]/95 backdrop-blur border-b border-[#1E3A5F]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -128,8 +200,12 @@ export default function Dashboard({
               <Zap className="w-5 h-5 text-[#0D1B2A]" />
             </div>
             <div>
-              <div className="font-black text-white text-sm tracking-wider">TECHBAL</div>
-              <div className="text-[#00C9A7] text-[10px] tracking-[0.2em] font-medium">BALANCING SUITE</div>
+              <div className="font-black text-white text-sm tracking-wider">
+                TM INDUSTRIAL
+              </div>
+              <div className="text-[#00C9A7] text-[10px] tracking-[0.2em] font-medium">
+                REPORT SOLUTION
+              </div>
             </div>
           </div>
 
@@ -138,11 +214,13 @@ export default function Dashboard({
               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#00C9A7] to-[#1E90FF] flex items-center justify-center text-[#0D1B2A] text-xs font-bold">
                 {user.name[0].toUpperCase()}
               </div>
-              <span className="text-[#8BA8C4] text-xs font-medium">{user.name}</span>
+              <span className="text-[#8BA8C4] text-xs font-medium">
+                {user.name}
+              </span>
             </div>
             <button
               onClick={onSettings}
-              className="w-9 h-9 rounded-lg bg-[#162032] border border-[#1E3A5F] flex items-center justify-center text-[#4A6B8A] hover:text-[#00C9A7] hover:border-[#00C9A7]/50 transition-all"
+              className="rounded-lg bg-[#162032] border border-[#1E3A5F] flex items-center justify-center text-[#4A6B8A] hover:text-[#00C9A7] hover:border-[#00C9A7]/50 transition-all w-[37px] h-[35px]"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -155,7 +233,6 @@ export default function Dashboard({
           </div>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -176,7 +253,9 @@ export default function Dashboard({
                 <div className="text-2xl font-black text-white mb-0.5">
                   <AnimatedNumber value={s.value} />
                 </div>
-                <div className="text-[#4A6B8A] text-xs font-medium">{s.label}</div>
+                <div className="text-[#4A6B8A] text-xs font-medium">
+                  {s.label}
+                </div>
               </motion.div>
             );
           })}
@@ -198,8 +277,25 @@ export default function Dashboard({
           <div className="flex gap-2">
             <div className="relative">
               <select
+                value={reportKindFilter}
+                onChange={(e) =>
+                  setReportKindFilter(e.target.value as typeof reportKindFilter)
+                }
+                className="appearance-none bg-[#162032] border border-[#1E3A5F] text-[#8BA8C4] rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-[#00C9A7] transition-colors cursor-pointer"
+              >
+                <option value="all">All Reports</option>
+                <option value="balancing">Balancing</option>
+                <option value="alignment">Alignment</option>
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#4A6B8A] pointer-events-none" />
+            </div>
+
+            <div className="relative">
+              <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as typeof statusFilter)
+                }
                 className="appearance-none bg-[#162032] border border-[#1E3A5F] text-[#8BA8C4] rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-[#00C9A7] transition-colors cursor-pointer"
               >
                 <option value="all">All Status</option>
@@ -209,53 +305,66 @@ export default function Dashboard({
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#4A6B8A] pointer-events-none" />
             </div>
 
-            <div className="relative">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="appearance-none bg-[#162032] border border-[#1E3A5F] text-[#8BA8C4] rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-[#00C9A7] transition-colors cursor-pointer"
-              >
-                <option value="all">All Types</option>
-                <option value="fan">Fan</option>
-                <option value="blower">Blower</option>
-                <option value="motor">Motor</option>
-                <option value="pump">Pump</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#4A6B8A] pointer-events-none" />
-            </div>
+            {reportKindFilter !== "alignment" && (
+              <div className="relative">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="appearance-none bg-[#162032] border border-[#1E3A5F] text-[#8BA8C4] rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-[#00C9A7] transition-colors cursor-pointer"
+                >
+                  <option value="all">All Types</option>
+                  <option value="fan">Fan</option>
+                  <option value="blower">Blower</option>
+                  <option value="motor">Motor</option>
+                  <option value="pump">Pump</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#4A6B8A] pointer-events-none" />
+              </div>
+            )}
           </div>
         </div>
 
         {/* Report Cards */}
-        {filtered.length === 0 ? (
+        {filteredBalancing.length === 0 && filteredAlignment.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="text-center py-20"
           >
             <FileText className="w-12 h-12 text-[#1E3A5F] mx-auto mb-4" />
-            <p className="text-[#4A6B8A] text-lg font-semibold">No reports found</p>
+            <p className="text-[#4A6B8A] text-lg font-semibold">
+              No reports found
+            </p>
             <p className="text-[#2A4A6A] text-sm mt-1">
-              {search ? "Try adjusting your search" : "Click + New Report to get started"}
+              {search
+                ? "Try adjusting your search"
+                : "Click + New Report to get started"}
             </p>
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             <AnimatePresence>
-              {filtered.map((report, i) => {
+              {/* Balancing Reports */}
+              {filteredBalancing.map((report, i) => {
                 const MachineIcon = machineIcons[report.machineType] || Wind;
-                const iconColor = machineColors[report.machineType] || "text-[#00C9A7]";
+                const iconColor =
+                  machineColors[report.machineType] || "text-[#00C9A7]";
                 const avgReduction =
                   report.measurementPoints.length > 0
                     ? report.measurementPoints.reduce((acc, mp) => {
-                        const r = mp.preBalancing > 0 ? ((mp.preBalancing - mp.postBalancing) / mp.preBalancing) * 100 : 0;
+                        const r =
+                          mp.preBalancing > 0
+                            ? ((mp.preBalancing - mp.postBalancing) /
+                                mp.preBalancing) *
+                              100
+                            : 0;
                         return acc + r;
                       }, 0) / report.measurementPoints.length
                     : 0;
 
                 return (
                   <motion.div
-                    key={report.id}
+                    key={`bal-${report.id}`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
@@ -263,7 +372,7 @@ export default function Dashboard({
                     className="group bg-[#162032] border border-[#1E3A5F] hover:border-[#00C9A7]/40 rounded-xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#00C9A7]/5"
                   >
                     {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-[#0D1B2A] border border-[#1E3A5F] flex items-center justify-center">
                           <MachineIcon className={`w-5 h-5 ${iconColor}`} />
@@ -285,10 +394,18 @@ export default function Dashboard({
                             : "bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20"
                         }`}
                       >
-                        {report.status === "completed" ? "COMPLETED" : "PENDING"}
+                        {report.status === "completed"
+                          ? "COMPLETED"
+                          : "PENDING"}
                       </button>
                     </div>
-
+                    {/* Type badge */}
+                    <div className="mb-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#00C9A7]/10 border border-[#00C9A7]/20 text-[#00C9A7] text-[10px] font-semibold tracking-wider">
+                        <Activity className="w-2.5 h-2.5" />
+                        BALANCING
+                      </span>
+                    </div>
                     {/* Details */}
                     <div className="space-y-1.5 mb-4">
                       <div className="flex items-center justify-between text-xs">
@@ -312,16 +429,20 @@ export default function Dashboard({
                       {avgReduction > 0 && (
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-[#4A6B8A]">Avg Reduction</span>
-                          <span className={`font-bold font-mono ${
-                            avgReduction >= 80 ? "text-green-400" :
-                            avgReduction >= 50 ? "text-[#00C9A7]" : "text-amber-400"
-                          }`}>
+                          <span
+                            className={`font-bold font-mono ${
+                              avgReduction >= 80
+                                ? "text-green-400"
+                                : avgReduction >= 50
+                                  ? "text-[#00C9A7]"
+                                  : "text-amber-400"
+                            }`}
+                          >
                             {avgReduction.toFixed(1)}%
                           </span>
                         </div>
                       )}
                     </div>
-
                     {/* Actions */}
                     <div className="flex items-center gap-2 pt-3 border-t border-[#1E3A5F]">
                       <button
@@ -341,7 +462,10 @@ export default function Dashboard({
                       {deleteConfirm === report.id ? (
                         <div className="flex gap-1">
                           <button
-                            onClick={() => { onDeleteReport(report.id); setDeleteConfirm(null); }}
+                            onClick={() => {
+                              onDeleteReport(report.id);
+                              setDeleteConfirm(null);
+                            }}
                             className="px-2 py-2 rounded-lg bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30 transition-all"
                           >
                             Confirm
@@ -365,11 +489,133 @@ export default function Dashboard({
                   </motion.div>
                 );
               })}
+
+              {/* Alignment Reports */}
+              {filteredAlignment.map((report, i) => {
+                return (
+                  <motion.div
+                    key={`aln-${report.id}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{
+                      delay: (filteredBalancing.length + i) * 0.05,
+                    }}
+                    className="group bg-[#162032] border border-[#1E3A5F] hover:border-[#1E90FF]/40 rounded-xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#1E90FF]/5"
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-[#0D1B2A] border border-[#1E3A5F] flex items-center justify-center">
+                          <Link2 className="w-5 h-5 text-[#1E90FF]" />
+                        </div>
+                        <div>
+                          <div className="text-white font-bold text-sm truncate max-w-[140px]">
+                            {report.projectName ||
+                              `${report.driverName} → ${report.drivenName}`}
+                          </div>
+                          <div className="text-[#1E90FF] text-[10px] font-mono tracking-wider">
+                            {report.caseId}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onToggleAlignmentStatus?.(report.id)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider transition-all ${
+                          report.status === "completed"
+                            ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
+                            : "bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20"
+                        }`}
+                      >
+                        {report.status === "completed"
+                          ? "COMPLETED"
+                          : "PENDING"}
+                      </button>
+                    </div>
+                    {/* Type badge */}
+                    <div className="mb-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#1E90FF]/10 border border-[#1E90FF]/20 text-[#1E90FF] text-[10px] font-semibold tracking-wider">
+                        <Link2 className="w-2.5 h-2.5" />
+                        ALIGNMENT
+                      </span>
+                    </div>
+                    {/* Details */}
+                    <div className="space-y-1.5 mb-4">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#4A6B8A]">Customer</span>
+                        <span className="text-[#8BA8C4] truncate max-w-[140px] text-right">
+                          {report.customerName || "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#4A6B8A]">Location</span>
+                        <span className="text-[#8BA8C4] truncate max-w-[140px] text-right">
+                          {report.location || "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#4A6B8A]">Date</span>
+                        <span className="text-[#8BA8C4]">
+                          {report.alignmentDate || "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#4A6B8A]">Equipment</span>
+                        <span className="text-[#8BA8C4] truncate max-w-[140px] text-right">
+                          {report.driverName} → {report.drivenName}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-3 border-t border-[#1E3A5F]">
+                      <button
+                        onClick={() => onEditAlignmentReport?.(report)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#0D1B2A] hover:bg-[#1E3A5F] text-[#8BA8C4] hover:text-white text-xs font-medium transition-all"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onDownloadAlignmentPDF?.(report)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#1E90FF]/10 hover:bg-[#1E90FF]/20 text-[#1E90FF] text-xs font-medium transition-all"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PDF
+                      </button>
+                      {deleteConfirm === `aln-${report.id}` ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => {
+                              onDeleteAlignmentReport?.(report.id);
+                              setDeleteConfirm(null);
+                            }}
+                            className="px-2 py-2 rounded-lg bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30 transition-all"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(null)}
+                            className="px-2 py-2 rounded-lg bg-[#0D1B2A] text-[#4A6B8A] text-xs font-medium hover:text-white transition-all"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirm(`aln-${report.id}`)}
+                          className="w-8 h-8 rounded-lg bg-[#0D1B2A] hover:bg-red-500/10 text-[#4A6B8A] hover:text-red-400 flex items-center justify-center transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
         )}
       </main>
-
       {/* FAB */}
       <motion.button
         initial={{ scale: 0 }}

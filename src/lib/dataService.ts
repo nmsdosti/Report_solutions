@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConnected } from "@/lib/supabase";
 import { storage } from "@/lib/storage";
-import { Report, CompanyBranding } from "@/types/report";
+import { Report, CompanyBranding, AlignmentReport } from "@/types/report";
 
 /**
  * Data service that syncs to Supabase when connected, falling back to localStorage.
@@ -138,6 +138,61 @@ export const dataService = {
       }
     }
   },
+
+  // ==================== ALIGNMENT REPORTS ====================
+  async getAlignmentReports(): Promise<AlignmentReport[]> {
+    if (isSupabaseConnected() && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("alignment_reports")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data || []).map(mapDbToAlignmentReport);
+      } catch (e) {
+        console.warn("Supabase alignment fetch failed, falling back to localStorage:", e);
+      }
+    }
+    return JSON.parse(localStorage.getItem("alignment_reports") || "[]");
+  },
+
+  async saveAlignmentReport(report: AlignmentReport): Promise<void> {
+    // Always save to localStorage as cache
+    const existing: AlignmentReport[] = JSON.parse(localStorage.getItem("alignment_reports") || "[]");
+    const idx = existing.findIndex((r) => r.id === report.id);
+    if (idx >= 0) existing[idx] = report;
+    else existing.unshift(report);
+    localStorage.setItem("alignment_reports", JSON.stringify(existing));
+
+    // Also save to Supabase if connected
+    if (isSupabaseConnected() && supabase) {
+      try {
+        const dbReport = mapAlignmentReportToDb(report);
+        const { error } = await supabase
+          .from("alignment_reports")
+          .upsert(dbReport, { onConflict: "id" });
+        if (error) {
+          console.error("Supabase alignment save failed:", error.message, error.details);
+        } else {
+          console.log("Alignment report saved to Supabase:", report.caseId);
+        }
+      } catch (e) {
+        console.error("Supabase alignment save error:", e);
+      }
+    }
+  },
+
+  async deleteAlignmentReport(id: string): Promise<void> {
+    const existing: AlignmentReport[] = JSON.parse(localStorage.getItem("alignment_reports") || "[]");
+    localStorage.setItem("alignment_reports", JSON.stringify(existing.filter((r) => r.id !== id)));
+    if (isSupabaseConnected() && supabase) {
+      try {
+        await supabase.from("alignment_reports").delete().eq("id", id);
+      } catch (e) {
+        console.warn("Supabase alignment delete error:", e);
+      }
+    }
+  },
 };
 
 // ==================== DB MAPPING ====================
@@ -200,5 +255,75 @@ function mapDbReportToReport(data: Record<string, unknown>): Report {
     serviceRemarks: data.service_remarks as string,
     recommendations: data.recommendations as string,
     customerAcknowledgment: data.customer_acknowledgment as string,
+  };
+}
+
+// Maps AlignmentReport to snake_case DB columns
+function mapAlignmentReportToDb(report: AlignmentReport): Record<string, unknown> {
+  return {
+    id: report.id,
+    case_id: report.caseId,
+    status: report.status,
+    created_at: report.createdAt,
+    updated_at: report.updatedAt,
+    driver_type: report.driverType,
+    driven_type: report.drivenType,
+    driver_name: report.driverName,
+    driven_name: report.drivenName,
+    project_name: report.projectName,
+    equipment_tag: report.equipmentTag,
+    location: report.location,
+    customer_name: report.customerName,
+    alignment_date: report.alignmentDate,
+    technician_name: report.technicianName,
+    alignment_method: report.alignmentMethod,
+    before_data: report.before,
+    after_data: report.after,
+    tolerance_offset_max: report.toleranceOffsetMax,
+    tolerance_angle_max: report.toleranceAngleMax,
+    angular_tolerance: report.angularTolerance,
+    offset_tolerance: report.offsetTolerance,
+    service_remarks: report.serviceRemarks,
+    recommendations: report.recommendations,
+    approved_by: report.approvedBy,
+    customer_acknowledgment: report.customerAcknowledgment,
+    rpm: report.rpm,
+    coupling_type: report.couplingType,
+    shim_added: report.shimAdded,
+  };
+}
+
+// Maps snake_case DB row to AlignmentReport
+function mapDbToAlignmentReport(data: Record<string, unknown>): AlignmentReport {
+  return {
+    id: data.id as string,
+    caseId: data.case_id as string,
+    status: data.status as "completed" | "pending",
+    createdAt: data.created_at as string,
+    updatedAt: data.updated_at as string,
+    driverType: data.driver_type as AlignmentReport["driverType"],
+    drivenType: data.driven_type as AlignmentReport["drivenType"],
+    driverName: data.driver_name as string,
+    drivenName: data.driven_name as string,
+    projectName: data.project_name as string,
+    equipmentTag: data.equipment_tag as string,
+    location: data.location as string,
+    customerName: data.customer_name as string,
+    alignmentDate: data.alignment_date as string,
+    technicianName: data.technician_name as string,
+    alignmentMethod: data.alignment_method as AlignmentReport["alignmentMethod"],
+    before: (data.before_data as AlignmentReport["before"]) || { angularVertical: 0, angularHorizontal: 0, offsetVertical: 0, offsetHorizontal: 0 },
+    after: (data.after_data as AlignmentReport["after"]) || { angularVertical: 0, angularHorizontal: 0, offsetVertical: 0, offsetHorizontal: 0 },
+    toleranceOffsetMax: data.tolerance_offset_max as number,
+    toleranceAngleMax: data.tolerance_angle_max as number,
+    angularTolerance: data.angular_tolerance as number,
+    offsetTolerance: data.offset_tolerance as number,
+    serviceRemarks: data.service_remarks as string,
+    recommendations: data.recommendations as string,
+    approvedBy: data.approved_by as string,
+    customerAcknowledgment: data.customer_acknowledgment as string,
+    rpm: data.rpm as number,
+    couplingType: data.coupling_type as string,
+    shimAdded: data.shim_added as string,
   };
 }
