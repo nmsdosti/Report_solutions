@@ -2,25 +2,23 @@ import { supabase, isSupabaseConnected } from "@/lib/supabase";
 import { storage } from "@/lib/storage";
 import { Report, CompanyBranding, AlignmentReport } from "@/types/report";
 
-/**
- * Data service that syncs to Supabase when connected, falling back to localStorage.
- * 
- * When Supabase is connected, it will:
- * - Save reports to a "reports" table
- * - Save branding to a "company_branding" table
- * - Read from Supabase for all operations
- * 
- * When Supabase is NOT connected, all operations use localStorage.
- */
+async function getCurrentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id ?? null;
+}
+
 export const dataService = {
   // ==================== REPORTS ====================
   async getReports(): Promise<Report[]> {
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
-        const { data, error } = await supabase
+        const userId = await getCurrentUserId();
+        let query = supabase
           .from("reports")
           .select("*")
           .order("created_at", { ascending: false });
+        if (userId) query = query.eq("user_id", userId);
+        const { data, error } = await query;
         if (error) throw error;
         return (data || []).map(mapDbReportToReport);
       } catch (e) {
@@ -31,20 +29,16 @@ export const dataService = {
   },
 
   async saveReport(report: Report): Promise<void> {
-    // Always save to localStorage as cache
     const reports = storage.getReports();
     const idx = reports.findIndex((r) => r.id === report.id);
-    if (idx >= 0) {
-      reports[idx] = report;
-    } else {
-      reports.unshift(report);
-    }
+    if (idx >= 0) reports[idx] = report;
+    else reports.unshift(report);
     storage.saveReports(reports);
 
-    // Also save to Supabase if connected
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
-        const dbReport = mapReportToDb(report);
+        const userId = await getCurrentUserId();
+        const dbReport = mapReportToDb(report, userId);
         const { error } = await supabase
           .from("reports")
           .upsert(dbReport, { onConflict: "id" });
@@ -62,8 +56,7 @@ export const dataService = {
   async deleteReport(id: string): Promise<void> {
     const reports = storage.getReports().filter((r) => r.id !== id);
     storage.saveReports(reports);
-
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
         await supabase.from("reports").delete().eq("id", id);
       } catch (e) {
@@ -73,42 +66,43 @@ export const dataService = {
   },
 
   async getReportByCaseId(caseId: string): Promise<Report | null> {
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
         const { data, error } = await supabase
           .from("reports")
           .select("*")
           .eq("case_id", caseId)
           .single();
-        if (!error && data) {
-          return mapDbReportToReport(data);
-        }
+        if (!error && data) return mapDbReportToReport(data);
       } catch (e) {
         console.warn("Supabase fetch by case_id failed:", e);
       }
     }
-    // Fallback to localStorage
     const reports = storage.getReports();
     return reports.find((r) => r.caseId === caseId) || null;
   },
 
   // ==================== BRANDING ====================
   async getBranding(): Promise<CompanyBranding> {
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
-        const { data, error } = await supabase
-          .from("company_branding")
-          .select("*")
-          .limit(1)
-          .single();
-        if (!error && data) {
-          return {
-            companyName: data.company_name || "",
-            phone: data.phone || "",
-            email: data.email || "",
-            website: data.website || "",
-            logo: data.logo || null,
-          };
+        const userId = await getCurrentUserId();
+        if (userId) {
+          const { data, error } = await supabase
+            .from("company_branding")
+            .select("*")
+            .eq("user_id", userId)
+            .limit(1)
+            .single();
+          if (!error && data) {
+            return {
+              companyName: data.company_name || "",
+              phone: data.phone || "",
+              email: data.email || "",
+              website: data.website || "",
+              logo: data.logo || null,
+            };
+          }
         }
       } catch (e) {
         console.warn("Supabase branding fetch failed:", e);
@@ -119,19 +113,22 @@ export const dataService = {
 
   async saveBranding(branding: CompanyBranding): Promise<void> {
     storage.saveBranding(branding);
-
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
-        const { error } = await supabase
-          .from("company_branding")
-          .upsert({
-            id: "default",
+        const userId = await getCurrentUserId();
+        if (!userId) return;
+        const { error } = await supabase.from("company_branding").upsert(
+          {
+            id: userId,
+            user_id: userId,
             company_name: branding.companyName,
             phone: branding.phone,
             email: branding.email,
             website: branding.website,
             logo: branding.logo,
-          }, { onConflict: "id" });
+          },
+          { onConflict: "id" }
+        );
         if (error) console.warn("Supabase branding save failed:", error);
       } catch (e) {
         console.warn("Supabase branding save error:", e);
@@ -141,12 +138,15 @@ export const dataService = {
 
   // ==================== ALIGNMENT REPORTS ====================
   async getAlignmentReports(): Promise<AlignmentReport[]> {
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
-        const { data, error } = await supabase
+        const userId = await getCurrentUserId();
+        let query = supabase
           .from("alignment_reports")
           .select("*")
           .order("created_at", { ascending: false });
+        if (userId) query = query.eq("user_id", userId);
+        const { data, error } = await query;
         if (error) throw error;
         return (data || []).map(mapDbToAlignmentReport);
       } catch (e) {
@@ -157,17 +157,18 @@ export const dataService = {
   },
 
   async saveAlignmentReport(report: AlignmentReport): Promise<void> {
-    // Always save to localStorage as cache
-    const existing: AlignmentReport[] = JSON.parse(localStorage.getItem("alignment_reports") || "[]");
+    const existing: AlignmentReport[] = JSON.parse(
+      localStorage.getItem("alignment_reports") || "[]"
+    );
     const idx = existing.findIndex((r) => r.id === report.id);
     if (idx >= 0) existing[idx] = report;
     else existing.unshift(report);
     localStorage.setItem("alignment_reports", JSON.stringify(existing));
 
-    // Also save to Supabase if connected
-    if (isSupabaseConnected() && supabase) {
+    if (isSupabaseConnected()) {
       try {
-        const dbReport = mapAlignmentReportToDb(report);
+        const userId = await getCurrentUserId();
+        const dbReport = mapAlignmentReportToDb(report, userId);
         const { error } = await supabase
           .from("alignment_reports")
           .upsert(dbReport, { onConflict: "id" });
@@ -183,9 +184,14 @@ export const dataService = {
   },
 
   async deleteAlignmentReport(id: string): Promise<void> {
-    const existing: AlignmentReport[] = JSON.parse(localStorage.getItem("alignment_reports") || "[]");
-    localStorage.setItem("alignment_reports", JSON.stringify(existing.filter((r) => r.id !== id)));
-    if (isSupabaseConnected() && supabase) {
+    const existing: AlignmentReport[] = JSON.parse(
+      localStorage.getItem("alignment_reports") || "[]"
+    );
+    localStorage.setItem(
+      "alignment_reports",
+      JSON.stringify(existing.filter((r) => r.id !== id))
+    );
+    if (isSupabaseConnected()) {
       try {
         await supabase.from("alignment_reports").delete().eq("id", id);
       } catch (e) {
@@ -196,8 +202,10 @@ export const dataService = {
 };
 
 // ==================== DB MAPPING ====================
-// Maps camelCase Report to snake_case DB columns
-function mapReportToDb(report: Report): Record<string, unknown> {
+function mapReportToDb(
+  report: Report,
+  userId?: string | null
+): Record<string, unknown> {
   return {
     id: report.id,
     case_id: report.caseId,
@@ -224,10 +232,10 @@ function mapReportToDb(report: Report): Record<string, unknown> {
     service_remarks: report.serviceRemarks,
     recommendations: report.recommendations,
     customer_acknowledgment: report.customerAcknowledgment,
+    ...(userId ? { user_id: userId } : {}),
   };
 }
 
-// Maps snake_case DB row to camelCase Report
 function mapDbReportToReport(data: Record<string, unknown>): Report {
   return {
     id: data.id as string,
@@ -243,7 +251,8 @@ function mapDbReportToReport(data: Record<string, unknown>): Report {
     technicianName: data.technician_name as string,
     machineType: data.machine_type as "fan" | "blower" | "motor" | "pump",
     balancingMethod: data.balancing_method as "single" | "dual",
-    measurementPoints: (data.measurement_points as Report["measurementPoints"]) || [],
+    measurementPoints:
+      (data.measurement_points as Report["measurementPoints"]) || [],
     trialWeight: data.trial_weight as number,
     trialAngle: data.trial_angle as number,
     finalCorrectionWeight: data.final_correction_weight as number,
@@ -258,8 +267,10 @@ function mapDbReportToReport(data: Record<string, unknown>): Report {
   };
 }
 
-// Maps AlignmentReport to snake_case DB columns
-function mapAlignmentReportToDb(report: AlignmentReport): Record<string, unknown> {
+function mapAlignmentReportToDb(
+  report: AlignmentReport,
+  userId?: string | null
+): Record<string, unknown> {
   return {
     id: report.id,
     case_id: report.caseId,
@@ -290,11 +301,13 @@ function mapAlignmentReportToDb(report: AlignmentReport): Record<string, unknown
     rpm: report.rpm,
     coupling_type: report.couplingType,
     shim_added: report.shimAdded,
+    ...(userId ? { user_id: userId } : {}),
   };
 }
 
-// Maps snake_case DB row to AlignmentReport
-function mapDbToAlignmentReport(data: Record<string, unknown>): AlignmentReport {
+function mapDbToAlignmentReport(
+  data: Record<string, unknown>
+): AlignmentReport {
   return {
     id: data.id as string,
     caseId: data.case_id as string,
@@ -312,8 +325,18 @@ function mapDbToAlignmentReport(data: Record<string, unknown>): AlignmentReport 
     alignmentDate: data.alignment_date as string,
     technicianName: data.technician_name as string,
     alignmentMethod: data.alignment_method as AlignmentReport["alignmentMethod"],
-    before: (data.before_data as AlignmentReport["before"]) || { angularVertical: 0, angularHorizontal: 0, offsetVertical: 0, offsetHorizontal: 0 },
-    after: (data.after_data as AlignmentReport["after"]) || { angularVertical: 0, angularHorizontal: 0, offsetVertical: 0, offsetHorizontal: 0 },
+    before: (data.before_data as AlignmentReport["before"]) || {
+      angularVertical: 0,
+      angularHorizontal: 0,
+      offsetVertical: 0,
+      offsetHorizontal: 0,
+    },
+    after: (data.after_data as AlignmentReport["after"]) || {
+      angularVertical: 0,
+      angularHorizontal: 0,
+      offsetVertical: 0,
+      offsetHorizontal: 0,
+    },
     toleranceOffsetMax: data.tolerance_offset_max as number,
     toleranceAngleMax: data.tolerance_angle_max as number,
     angularTolerance: data.angular_tolerance as number,

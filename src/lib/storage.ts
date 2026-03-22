@@ -60,6 +60,9 @@ export const storage = {
   logout: () => {
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(REPORTS_KEY);
+    localStorage.removeItem(BRANDING_KEY);
+    localStorage.removeItem("alignment_reports");
   },
 };
 

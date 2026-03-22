@@ -11,6 +11,7 @@ import AlignmentPDFPreviewModal from "@/components/alignment/AlignmentPDFPreview
 import { Report, User, CompanyBranding, AlignmentReport } from "@/types/report";
 import { storage } from "@/lib/storage";
 import { dataService } from "@/lib/dataService";
+import { supabase } from "@/lib/supabase";
 
 type AppView =
   | "auth"
@@ -23,11 +24,9 @@ type AppView =
   | "alignmentPdf";
 
 function Home() {
-  const [view, setView] = useState<AppView>(() =>
-    storage.isAuthenticated() ? "dashboard" : "auth"
-  );
-  const [user, setUser] = useState<User | null>(() => storage.getUser());
-  const [reports, setReports] = useState<Report[]>(() => storage.getReports());
+  const [view, setView] = useState<AppView>("auth");
+  const [user, setUser] = useState<User | null>(null);
+  const [reports, setReports] = useState<Report[]>([]);
   const [branding, setBranding] = useState<CompanyBranding>(() =>
     storage.getBranding()
   );
@@ -41,11 +40,40 @@ function Home() {
   const [alignmentPdfReport, setAlignmentPdfReport] =
     useState<AlignmentReport | null>(null);
 
-  // Load data from Supabase on mount (async)
+  // Restore Supabase session on mount
   useEffect(() => {
-    dataService.getReports().then(setReports);
-    dataService.getBranding().then(setBranding);
-    dataService.getAlignmentReports().then(setAlignmentReports);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u: User = {
+          id: session.user.id,
+          email: session.user.email || "",
+          name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "",
+        };
+        setUser(u);
+        storage.saveUser(u);
+        storage.setAuthenticated(true);
+        setView("dashboard");
+        dataService.getReports().then(setReports);
+        dataService.getBranding().then(setBranding);
+        dataService.getAlignmentReports().then(setAlignmentReports);
+      } else {
+        // No valid session — ensure clean state
+        storage.logout();
+        setView("auth");
+      }
+    });
+
+    // Listen to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setUser(null);
+        storage.logout();
+        setReports([]);
+        setAlignmentReports([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const refreshReports = useCallback(async () => {
@@ -59,10 +87,10 @@ function Home() {
 
   const handleAuthenticated = (u: User) => {
     setUser(u);
-    // After login, show report type selector
     setView("reportTypeSelector");
     dataService.getReports().then(setReports);
     dataService.getAlignmentReports().then(setAlignmentReports);
+    dataService.getBranding().then(setBranding);
   };
 
   // Report type selector
@@ -123,9 +151,12 @@ function Home() {
     await refreshReports();
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     storage.logout();
     setUser(null);
+    setReports([]);
+    setAlignmentReports([]);
     setView("auth");
   };
 

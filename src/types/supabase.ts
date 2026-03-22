@@ -45,6 +45,7 @@ export type Database = {
           tolerance_angle_max: number | null
           tolerance_offset_max: number | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           after_data?: Json | null
@@ -76,6 +77,7 @@ export type Database = {
           tolerance_angle_max?: number | null
           tolerance_offset_max?: number | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           after_data?: Json | null
@@ -107,8 +109,17 @@ export type Database = {
           tolerance_angle_max?: number | null
           tolerance_offset_max?: number | null
           updated_at?: string | null
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "alignment_reports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_branding: {
         Row: {
@@ -119,6 +130,7 @@ export type Database = {
           logo: string | null
           phone: string | null
           updated_at: string | null
+          user_id: string | null
           website: string | null
         }
         Insert: {
@@ -129,6 +141,7 @@ export type Database = {
           logo?: string | null
           phone?: string | null
           updated_at?: string | null
+          user_id?: string | null
           website?: string | null
         }
         Update: {
@@ -139,9 +152,18 @@ export type Database = {
           logo?: string | null
           phone?: string | null
           updated_at?: string | null
+          user_id?: string | null
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_branding_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
@@ -170,6 +192,7 @@ export type Database = {
           trial_angle: number | null
           trial_weight: number | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           balancing_date?: string | null
@@ -197,6 +220,7 @@ export type Database = {
           trial_angle?: number | null
           trial_weight?: number | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           balancing_date?: string | null
@@ -224,6 +248,36 @@ export type Database = {
           trial_angle?: number | null
           trial_weight?: number | null
           updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
         }
         Relationships: []
       }
