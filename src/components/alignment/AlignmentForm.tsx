@@ -169,19 +169,19 @@ export default function AlignmentForm({
     setReport((r) => ({ ...r, after: { ...r.after, ...partial } }));
   };
 
-  // Pass/fail checks
+  // Pass/fail checks — use absolute values so negative readings are also evaluated correctly
   const vertPassBefore =
-    report.before.offsetVertical <= report.toleranceOffsetMax &&
-    report.before.angularVertical <= report.toleranceAngleMax;
+    Math.abs(report.before.offsetVertical) <= report.toleranceOffsetMax &&
+    Math.abs(report.before.angularVertical) <= report.toleranceAngleMax;
   const horizPassBefore =
-    report.before.offsetHorizontal <= report.toleranceOffsetMax &&
-    report.before.angularHorizontal <= report.toleranceAngleMax;
+    Math.abs(report.before.offsetHorizontal) <= report.toleranceOffsetMax &&
+    Math.abs(report.before.angularHorizontal) <= report.toleranceAngleMax;
   const vertPassAfter =
-    report.after.offsetVertical <= report.toleranceOffsetMax &&
-    report.after.angularVertical <= report.toleranceAngleMax;
+    Math.abs(report.after.offsetVertical) <= report.toleranceOffsetMax &&
+    Math.abs(report.after.angularVertical) <= report.toleranceAngleMax;
   const horizPassAfter =
-    report.after.offsetHorizontal <= report.toleranceOffsetMax &&
-    report.after.angularHorizontal <= report.toleranceAngleMax;
+    Math.abs(report.after.offsetHorizontal) <= report.toleranceOffsetMax &&
+    Math.abs(report.after.angularHorizontal) <= report.toleranceAngleMax;
 
   const driverInfo = EQUIPMENT_OPTIONS.find((e) => e.type === report.driverType)!;
   const drivenInfo = EQUIPMENT_OPTIONS.find((e) => e.type === report.drivenType)!;

@@ -58,27 +58,103 @@ function EquipmentDiagram({
   const couplingColor = "#1B6F82";
   const boltColor = "#94a3b8";
 
-  // Motor: classic NEMA frame with terminal box
+  // Motor: detailed NEMA-style electric motor with fins, terminal box, mounting feet
   const motorShape = (
     <g>
-      {/* Main body */}
-      <rect x="8" y="18" width="58" height="44" rx="5" fill={bodyColor} stroke="#2d4a5f" strokeWidth="1.5" />
+      {/* Shadow/base */}
+      <rect x="6" y="22" width="62" height="42" rx="6" fill="#b0bec5" opacity="0.3" />
+      {/* Main cylindrical body */}
+      <rect x="5" y="20" width="62" height="40" rx="6" fill="url(#motorGrad)" stroke="#2d4a5f" strokeWidth="1.5" />
       {/* Cooling fins */}
-      {[22, 30, 38, 46, 54].map((x) => (
-        <rect key={x} x={x} y="18" width="3" height="44" rx="1" fill={bodyHighlight} opacity="0.5" />
+      {[10, 17, 24, 31, 38, 45, 52].map((x) => (
+        <rect key={x} x={x} y="20" width="4" height="40" rx="1" fill="#4a6a80" opacity="0.45" />
       ))}
-      {/* Terminal box */}
-      <rect x="20" y="10" width="24" height="12" rx="2" fill={bodyHighlight} stroke="#2d4a5f" strokeWidth="1" />
-      <circle cx="29" cy="16" r="2" fill={shaftColor} />
-      <circle cx="35" cy="16" r="2" fill={shaftColor} />
-      <circle cx="41" cy="16" r="2" fill={shaftColor} />
+      {/* End cap left */}
+      <rect x="3" y="24" width="6" height="32" rx="3" fill="#3d6070" stroke="#2d4a5f" strokeWidth="1" />
+      {/* End cap right */}
+      <rect x="63" y="24" width="7" height="32" rx="3" fill="#3d6070" stroke="#2d4a5f" strokeWidth="1" />
+      {/* Terminal box on top */}
+      <rect x="22" y="8" width="26" height="14" rx="3" fill="#4a6a80" stroke="#2d4a5f" strokeWidth="1" />
+      <rect x="25" y="11" width="6" height="8" rx="1" fill="#253d4e" />
+      <rect x="33" y="11" width="6" height="8" rx="1" fill="#253d4e" />
+      <rect x="41" y="11" width="4" height="8" rx="1" fill="#253d4e" />
+      <line x1="25" y1="22" x2="25" y2="20" stroke="#2d4a5f" strokeWidth="1" />
+      <line x1="45" y1="22" x2="45" y2="20" stroke="#2d4a5f" strokeWidth="1" />
       {/* Output shaft */}
-      <rect x="66" y="35" width="12" height="10" rx="2" fill={shaftColor} />
-      {/* Foot mounts */}
-      <rect x="8" y="60" width="16" height="5" rx="1" fill={bodyHighlight} />
-      <rect x="42" y="60" width="16" height="5" rx="1" fill={bodyHighlight} />
-      <circle cx="16" cy="63" r="2" fill={boltColor} />
-      <circle cx="50" cy="63" r="2" fill={boltColor} />
+      <rect x="69" y="36" width="11" height="8" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1" />
+      {/* Shaft key */}
+      <rect x="73" y="34" width="4" height="3" rx="0.5" fill="#1f2937" />
+      {/* Mounting feet */}
+      <rect x="5" y="58" width="16" height="6" rx="2" fill="#3d6070" stroke="#2d4a5f" strokeWidth="1" />
+      <rect x="45" y="58" width="16" height="6" rx="2" fill="#3d6070" stroke="#2d4a5f" strokeWidth="1" />
+      <circle cx="13" cy="61" r="2.5" fill="#1f2937" />
+      <circle cx="53" cy="61" r="2.5" fill="#1f2937" />
+      <circle cx="13" cy="61" r="1" fill="#6b8ba4" />
+      <circle cx="53" cy="61" r="1" fill="#6b8ba4" />
+      {/* Center shaft circle on end cap */}
+      <circle cx="66" cy="40" r="4" fill="#253d4e" stroke="#2d4a5f" strokeWidth="1" />
+      <circle cx="66" cy="40" r="2" fill="#374151" />
+      {/* Gradient definition */}
+      <defs>
+        <linearGradient id="motorGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#5a7d91" />
+          <stop offset="50%" stopColor="#3d6070" />
+          <stop offset="100%" stopColor="#2d4a5f" />
+        </linearGradient>
+      </defs>
+    </g>
+  );
+
+  // Fan: centrifugal fan with scroll housing, impeller blades, inlet flange, and discharge duct
+  const fanShape = (
+    <g>
+      <defs>
+        <radialGradient id="fanHubGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#5a7d91" />
+          <stop offset="100%" stopColor="#2d4a5f" />
+        </radialGradient>
+        <linearGradient id="fanBodyGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#4a6a80" />
+          <stop offset="100%" stopColor="#2d4a5f" />
+        </linearGradient>
+      </defs>
+      {/* Scroll housing - main volute */}
+      <path
+        d="M 14 16 C 6 16 4 28 4 40 C 4 54 10 66 26 68 C 42 70 60 62 66 50 C 72 38 68 22 58 16 C 50 10 32 10 22 14 Z"
+        fill="url(#fanBodyGrad)" stroke="#2d4a5f" strokeWidth="1.5"
+      />
+      {/* Inner circle (inlet opening) */}
+      <circle cx="36" cy="40" r="22" fill="#1a2e3d" stroke="#2d4a5f" strokeWidth="1.2" />
+      {/* Impeller blades — forward-curved */}
+      {[0, 40, 80, 120, 160, 200, 240, 280, 320].map((deg) => {
+        const a = (deg * Math.PI) / 180;
+        const a2 = ((deg + 25) * Math.PI) / 180;
+        const r1 = 8, r2 = 18;
+        return (
+          <line
+            key={deg}
+            x1={36 + r1 * Math.cos(a)} y1={40 + r1 * Math.sin(a)}
+            x2={36 + r2 * Math.cos(a2)} y2={40 + r2 * Math.sin(a2)}
+            stroke="#6b8ba4" strokeWidth="3" strokeLinecap="round"
+          />
+        );
+      })}
+      {/* Hub */}
+      <circle cx="36" cy="40" r="8" fill="url(#fanHubGrad)" stroke="#2d4a5f" strokeWidth="1.2" />
+      <circle cx="36" cy="40" r="3.5" fill="#1f2937" />
+      {/* Shaft stub on right */}
+      <rect x="57" y="36" width="16" height="8" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1" />
+      {/* Discharge duct — top right */}
+      <rect x="54" y="6" width="16" height="22" rx="2" fill="#3d6070" stroke="#2d4a5f" strokeWidth="1.2" />
+      <line x1="54" y1="12" x2="70" y2="12" stroke="#2d4a5f" strokeWidth="0.8" />
+      <line x1="54" y1="18" x2="70" y2="18" stroke="#2d4a5f" strokeWidth="0.8" />
+      {/* Inlet flange ring on left */}
+      <circle cx="14" cy="40" r="8" fill="none" stroke="#4a6a80" strokeWidth="3" />
+      <circle cx="14" cy="40" r="2.5" fill="#374151" />
+      {/* Mounting base */}
+      <rect x="8" y="66" width="48" height="6" rx="2" fill="#3d6070" stroke="#2d4a5f" strokeWidth="1" />
+      <circle cx="18" cy="69" r="2.2" fill="#1f2937" />
+      <circle cx="46" cy="69" r="2.2" fill="#1f2937" />
     </g>
   );
 
@@ -119,30 +195,7 @@ function EquipmentDiagram({
     </g>
   );
 
-  // Fan: axial fan with housing
-  const fanShape = (
-    <g>
-      {/* Housing ring */}
-      <circle cx="40" cy="40" r="28" fill={bodyColor} stroke="#2d4a5f" strokeWidth="2" />
-      <circle cx="40" cy="40" r="24" fill="#243547" />
-      {/* Fan blades */}
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => {
-        const a = (deg * Math.PI) / 180;
-        const bx = 40 + 8 * Math.cos(a);
-        const by = 40 + 8 * Math.sin(a);
-        const ex = 40 + 22 * Math.cos(a + 0.6);
-        const ey = 40 + 22 * Math.sin(a + 0.6);
-        return (
-          <line key={deg} x1={bx} y1={by} x2={ex} y2={ey} stroke={bodyHighlight} strokeWidth="4" strokeLinecap="round" />
-        );
-      })}
-      {/* Hub */}
-      <circle cx="40" cy="40" r="8" fill={bodyColor} stroke="#2d4a5f" strokeWidth="1.5" />
-      <circle cx="40" cy="40" r="4" fill={shaftColor} />
-      {/* Shaft */}
-      <rect x="68" y="37" width="10" height="6" rx="2" fill={shaftColor} />
-    </g>
-  );
+  // Fan shape defined above (centrifugal fan with scroll housing)
 
   // Blower: centrifugal blower scroll housing
   const blowerShape = (
@@ -310,18 +363,19 @@ function EquipmentDiagram({
 }
 
 export default function AlignmentPDFTemplate({ report, branding }: AlignmentPDFTemplateProps) {
+  // Use Math.abs so negative values (e.g. -1) are also treated as out-of-tolerance
   const vertPassBefore =
-    report.before.offsetVertical <= report.toleranceOffsetMax &&
-    report.before.angularVertical <= report.toleranceAngleMax;
+    Math.abs(report.before.offsetVertical) <= report.toleranceOffsetMax &&
+    Math.abs(report.before.angularVertical) <= report.toleranceAngleMax;
   const horizPassBefore =
-    report.before.offsetHorizontal <= report.toleranceOffsetMax &&
-    report.before.angularHorizontal <= report.toleranceAngleMax;
+    Math.abs(report.before.offsetHorizontal) <= report.toleranceOffsetMax &&
+    Math.abs(report.before.angularHorizontal) <= report.toleranceAngleMax;
   const vertPassAfter =
-    report.after.offsetVertical <= report.toleranceOffsetMax &&
-    report.after.angularVertical <= report.toleranceAngleMax;
+    Math.abs(report.after.offsetVertical) <= report.toleranceOffsetMax &&
+    Math.abs(report.after.angularVertical) <= report.toleranceAngleMax;
   const horizPassAfter =
-    report.after.offsetHorizontal <= report.toleranceOffsetMax &&
-    report.after.angularHorizontal <= report.toleranceAngleMax;
+    Math.abs(report.after.offsetHorizontal) <= report.toleranceOffsetMax &&
+    Math.abs(report.after.angularHorizontal) <= report.toleranceAngleMax;
 
   const overallPass = vertPassAfter && horizPassAfter;
 
@@ -544,36 +598,36 @@ export default function AlignmentPDFTemplate({ report, branding }: AlignmentPDFT
           <tr>
             <td style={labelCell}>Max Offset (mm)</td>
             <td style={{ ...cell, textAlign: "center", fontFamily: "monospace" }}>
-              &lt; {report.toleranceOffsetMax}
+              ± {report.toleranceOffsetMax}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.before.offsetVertical > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.before.offsetVertical) > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.before.offsetVertical}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.before.offsetHorizontal > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.before.offsetHorizontal) > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.before.offsetHorizontal}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.after.offsetVertical > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.after.offsetVertical) > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.after.offsetVertical}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.after.offsetHorizontal > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.after.offsetHorizontal) > report.toleranceOffsetMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.after.offsetHorizontal}
             </td>
           </tr>
           <tr>
             <td style={labelCell}>Max Angle (mm/100mm)</td>
             <td style={{ ...cell, textAlign: "center", fontFamily: "monospace" }}>
-              &lt; {report.toleranceAngleMax}
+              ± {report.toleranceAngleMax}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.before.angularVertical > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.before.angularVertical) > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.before.angularVertical}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.before.angularHorizontal > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.before.angularHorizontal) > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.before.angularHorizontal}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.after.angularVertical > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.after.angularVertical) > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.after.angularVertical}
             </td>
-            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: report.after.angularHorizontal > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+            <td style={{ ...cell, textAlign: "center", fontFamily: "monospace", color: Math.abs(report.after.angularHorizontal) > report.toleranceAngleMax ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
               {report.after.angularHorizontal}
             </td>
           </tr>
