@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
 import { Toaster } from "sonner";
-import AuthScreen from "@/components/auth/AuthScreen";
 import Dashboard from "@/components/dashboard/Dashboard";
 import ReportForm from "@/components/form/ReportForm";
 import PDFPreviewModal from "@/components/pdf/PDFPreviewModal";
@@ -11,10 +10,14 @@ import AlignmentPDFPreviewModal from "@/components/alignment/AlignmentPDFPreview
 import { Report, User, CompanyBranding, AlignmentReport } from "@/types/report";
 import { storage } from "@/lib/storage";
 import { dataService } from "@/lib/dataService";
-import { supabase } from "@/lib/supabase";
+
+const GUEST_USER: User = {
+  id: "local-user",
+  email: "user@local",
+  name: "Local User",
+};
 
 type AppView =
-  | "auth"
   | "reportTypeSelector"
   | "dashboard"
   | "form"
@@ -24,8 +27,8 @@ type AppView =
   | "alignmentPdf";
 
 function Home() {
-  const [view, setView] = useState<AppView>("auth");
-  const [user, setUser] = useState<User | null>(null);
+  const [view, setView] = useState<AppView>("dashboard");
+  const [user] = useState<User>(GUEST_USER);
   const [reports, setReports] = useState<Report[]>([]);
   const [branding, setBranding] = useState<CompanyBranding>(() =>
     storage.getBranding()
@@ -40,40 +43,11 @@ function Home() {
   const [alignmentPdfReport, setAlignmentPdfReport] =
     useState<AlignmentReport | null>(null);
 
-  // Restore Supabase session on mount
+  // Load data from localStorage on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const u: User = {
-          id: session.user.id,
-          email: session.user.email || "",
-          name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "",
-        };
-        setUser(u);
-        storage.saveUser(u);
-        storage.setAuthenticated(true);
-        setView("dashboard");
-        dataService.getReports().then(setReports);
-        dataService.getBranding().then(setBranding);
-        dataService.getAlignmentReports().then(setAlignmentReports);
-      } else {
-        // No valid session — ensure clean state
-        storage.logout();
-        setView("auth");
-      }
-    });
-
-    // Listen to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        setUser(null);
-        storage.logout();
-        setReports([]);
-        setAlignmentReports([]);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    dataService.getReports().then(setReports);
+    dataService.getAlignmentReports().then(setAlignmentReports);
+    dataService.getBranding().then(setBranding);
   }, []);
 
   const refreshReports = useCallback(async () => {
@@ -84,14 +58,6 @@ function Home() {
     setReports(balancing);
     setAlignmentReports(alignment);
   }, []);
-
-  const handleAuthenticated = (u: User) => {
-    setUser(u);
-    setView("reportTypeSelector");
-    dataService.getReports().then(setReports);
-    dataService.getAlignmentReports().then(setAlignmentReports);
-    dataService.getBranding().then(setBranding);
-  };
 
   // Report type selector
   const handleSelectReportType = (type: "balancing" | "alignment") => {
@@ -149,15 +115,6 @@ function Home() {
     };
     await dataService.saveReport(updated);
     await refreshReports();
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    storage.logout();
-    setUser(null);
-    setReports([]);
-    setAlignmentReports([]);
-    setView("auth");
   };
 
   const handleSaveBranding = async (b: CompanyBranding) => {
@@ -220,10 +177,6 @@ function Home() {
         }}
       />
 
-      {view === "auth" && (
-        <AuthScreen onAuthenticated={handleAuthenticated} />
-      )}
-
       {view === "reportTypeSelector" && (
         <div className="relative">
           <button
@@ -237,7 +190,7 @@ function Home() {
         </div>
       )}
 
-      {view === "dashboard" && user && (
+      {view === "dashboard" && (
         <Dashboard
           user={user}
           reports={reports}
@@ -252,7 +205,7 @@ function Home() {
           onDeleteAlignmentReport={handleDeleteAlignmentReport}
           onToggleAlignmentStatus={handleToggleAlignmentStatus}
           onSettings={() => setView("settings")}
-          onLogout={handleLogout}
+          onLogout={() => {}}
           onRefresh={refreshReports}
         />
       )}

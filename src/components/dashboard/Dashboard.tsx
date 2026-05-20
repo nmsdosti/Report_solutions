@@ -226,7 +226,7 @@ export default function Dashboard({
             </button>
             <button
               onClick={onLogout}
-              className="w-9 h-9 rounded-lg bg-[#162032] border border-[#1E3A5F] flex items-center justify-center text-[#4A6B8A] hover:text-red-400 hover:border-red-400/50 transition-all"
+              className="w-9 h-9 rounded-lg bg-[#162032] border border-[#1E3A5F] flex items-center justify-center text-[#4A6B8A] hover:text-red-400 hover:border-red-400/50 transition-all hidden"
             >
               <LogOut className="w-4 h-4" />
             </button>
